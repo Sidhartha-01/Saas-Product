@@ -1,71 +1,166 @@
-import { Row, Col, Card} from "antd";
-import StatCard from "../components/StatCard";
+import { Row, Col, Card } from "antd";
+import { useMemo } from "react";
 import {
-  Line,
+  TrendingUp,
+  Users,
+  Target,
+  Zap,
+} from "lucide-react";
+import {
+  AreaChart,
+  Area,
   XAxis,
   YAxis,
   Tooltip,
   ResponsiveContainer,
   PieChart,
   Pie,
-  AreaChart,
+  Cell,
+  CartesianGrid,
 } from "recharts";
+import RecentCampaigns from "../components/RecentCampaigns";
+import { useCampaignStore } from "../store/campaignStore";
+import StatCard from "../components/StatCard";
+import { useCampaignPolling } from "../hooks/useCampaignPolling";
 
-const AreaChartData = [
-  { name: "Jan", revenue: 4000 },
-  { name: "Feb", revenue: 3000 },
-  { name: "Mar", revenue: 5000 },
-  { name: "Apr", revenue: 7000 },
-];
-
-const pieData = [
-  { name: "Active", value: 5 },
-  { name: "Paused", value: 2 },
-  { name: "Completed", value: 3 },
-];
+const COLORS = ["#52c41a", "#faad14", "#ff4d4f"];
 
 export default function DashboardPage() {
+  const { campaigns } = useCampaignStore();
+
+  useCampaignPolling();
+
+  const activeCampaigns = campaigns.filter(c => c.status === "Active").length;
+  const totalReach = campaigns.reduce((acc, c) => acc + c.impressions,0);
+  const totalClicks = campaigns.reduce((acc, c) => acc + c.clicks,0 );
+  const avgConversion =totalReach > 0 ? ((totalClicks / totalReach) * 100).toFixed(2) : "0";
+  const totalBudget = campaigns.reduce((acc, c) => acc + c.budget,0);
+  const totalSpend = campaigns.reduce((acc, c) => acc + c.spend,0);
+  const budgetUtilization = totalBudget > 0? ((totalSpend / totalBudget) * 100).toFixed(0): 0;
+
+  const areaChartData = useMemo(() => {
+    if (campaigns.length === 0) {
+      return [{ name: "No Data", revenue: 0 }];
+    }
+
+    const grouped: Record<string, number> = {};
+
+    campaigns.forEach((c) => {
+      if (!c.createdAt) return;
+
+      const month = new Date(c.createdAt).toLocaleString("default", {
+        month: "short",
+      });
+
+      grouped[month] = (grouped[month] || 0) + c.spend;
+    });
+  }, [campaigns]);
+
+
+  const pieData = useMemo(() => {
+    const statusCount: Record<string, number> = {};
+
+    campaigns.forEach((c) => {
+      statusCount[c.status] = (statusCount[c.status] || 0) + 1;
+    });
+
+    return Object.entries(statusCount).map(([name, value]) => ({
+      name,
+      value,
+    }));
+  }, [campaigns]);
+
   return (
-    <>
-      <Row gutter={16}>
-        <Col span={6}>
-          <StatCard title="Total Campaigns" value={10} />
+    <div style={{ padding: 24 }}>
+      <Row gutter={[16, 16]}>
+        <Col xs={24} sm={12} md={6}>
+          <StatCard
+            title="Active Campaigns"
+            value={activeCampaigns}
+            icon={Zap}
+            color="text-amber-600"
+            bg="bg-amber-50" change={""} trend={"up"}/>
         </Col>
-        <Col span={6}>
-          <StatCard title="Active Campaigns" value={5} />
+
+        <Col xs={24} sm={12} md={6}>
+          <StatCard
+            title="Total Reach"
+            value={totalReach.toLocaleString()}
+            icon={Users}
+            color="text-blue-600"
+            bg="bg-blue-50" change={""} trend={"up"}/>
         </Col>
-        <Col span={6}>
-          <StatCard title="Revenue" value="$24,000" />
+
+        <Col xs={24} sm={12} md={6}>
+          <StatCard
+            title="Avg. Conversion"
+            value={`${avgConversion}%`}
+            icon={Target}
+            color="text-purple-600"
+            bg="bg-purple-50" change={""} trend={"up"}/>
         </Col>
-        <Col span={6}>
-          <StatCard title="CTR" value="4.2%" />
+
+        <Col xs={24} sm={12} md={6}>
+          <StatCard
+            title="Budget Utilization"
+            value={`${budgetUtilization}%`}
+            icon={TrendingUp}
+            color="text-emerald-600"
+            bg="bg-emerald-50" change={""} trend={"up"}/>
         </Col>
       </Row>
 
-      <Row gutter={16} style={{ marginTop: 24 }}>
-        <Col span={12}>
-          <Card title="Revenue Overview">
+      <Row gutter={[16, 16]} style={{ marginTop: 24 }}>
+        <Col xs={24} lg={14}>
+          <Card title="Revenue Overview" bordered={false}>
             <ResponsiveContainer width="100%" height={300}>
-              <AreaChart data={AreaChartData}>
+              <AreaChart data={areaChartData}>
+                <CartesianGrid strokeDasharray="3 3" />
                 <XAxis dataKey="name" />
                 <YAxis />
                 <Tooltip />
-                <Line type="monotone" dataKey="revenue" />
+                <Area
+                  type="monotone"
+                  dataKey="revenue"
+                  stroke="#10b981"
+                  strokeWidth={2}
+                  fillOpacity={0.3}
+                  fill="#10b981"
+                />
               </AreaChart>
             </ResponsiveContainer>
           </Card>
         </Col>
 
-        <Col span={12}>
-          <Card title="Campaign Status">
+        <Col xs={24} lg={10}>
+          <Card title="Campaign Status" bordered={false}>
             <ResponsiveContainer width="100%" height={300}>
               <PieChart>
-                <Pie data={pieData} dataKey="value" nameKey="name" />
+                <Pie
+                  data={pieData}
+                  dataKey="value"
+                  nameKey="name"
+                  outerRadius={100}
+                  label
+                >
+                  {pieData.map((_entry, index) => (
+                    <Cell
+                      key={`cell-${index}`}
+                      fill={COLORS[index % COLORS.length]}
+                    />
+                  ))}
+                </Pie>
+                <Tooltip />
               </PieChart>
             </ResponsiveContainer>
           </Card>
         </Col>
       </Row>
-    </>
+
+      <div className="mt-6">
+        <RecentCampaigns />
+      </div>
+
+    </div>
   );
 }

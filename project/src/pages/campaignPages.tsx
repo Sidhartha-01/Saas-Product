@@ -1,19 +1,49 @@
-import { useEffect, useState } from "react";
-import { Table, Tag, Input, Select, Card } from "antd";
+import { useState } from "react";
+import {
+  Table,
+  Tag,
+  Input,
+  Select,
+  Card,
+  Button,
+  Modal,
+  Form,
+  InputNumber,
+  Space,
+  Popconfirm,
+} from "antd";
 import type { ColumnsType } from "antd/es/table";
 import { useCampaignStore } from "../store/campaignStore";
 import type { Campaign } from "../types/campaign";
+import { PlusOutlined } from "@ant-design/icons";
+import { useCampaignPolling } from "../hooks/useCampaignPolling";
 
 const { Search } = Input;
 
 export default function CampaignPage() {
-  const { campaigns, loading, fetchCampaigns } = useCampaignStore();
+  const {
+    campaigns,
+    loading,
+    addCampaign,
+    updateCampaign,
+    deleteCampaign,
+  } = useCampaignStore();
+
   const [searchText, setSearchText] = useState("");
   const [statusFilter, setStatusFilter] = useState<string | undefined>();
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [editingCampaign, setEditingCampaign] = useState<Campaign | null>(null);
 
-  useEffect(() => {
-    fetchCampaigns();
-  }, [fetchCampaigns]);
+  const [form] = Form.useForm();
+
+  // useEffect(() => {
+  //   fetchCampaigns();
+  // }, [fetchCampaigns]);
+
+  useCampaignStore((state) => state.refreshMetrics);
+ 
+
+  useCampaignPolling();
 
   const filteredData = campaigns.filter((campaign) => {
     const matchesSearch = campaign.name
@@ -26,6 +56,32 @@ export default function CampaignPage() {
 
     return matchesSearch && matchesStatus;
   });
+
+  const handleAddOrUpdate = () => {
+    form.validateFields().then((values) => {
+      if (editingCampaign) {
+        updateCampaign({ ...editingCampaign, ...values });
+      } else {
+        const newCampaign: Campaign = {
+          impressions: 0,
+          clicks: 0,  
+          id: Date.now().toString(),
+          ...values,
+        };
+        addCampaign(newCampaign);
+      }
+
+      form.resetFields();
+      setEditingCampaign(null);
+      setIsModalOpen(false);
+    });
+  };
+
+  const handleEdit = (record: Campaign) => {
+    setEditingCampaign(record);
+    form.setFieldsValue(record);
+    setIsModalOpen(true);
+  };
 
   const columns: ColumnsType<Campaign> = [
     {
@@ -62,11 +118,45 @@ export default function CampaignPage() {
       title: "Clicks",
       dataIndex: "clicks",
     },
+    {
+      title: "Actions",
+      render: (_, record) => (
+        <Space>
+          <Button type="link" onClick={() => handleEdit(record)}>
+            Edit
+          </Button>
+
+          <Popconfirm
+            title="Delete this campaign?"
+            onConfirm={() => deleteCampaign(record.id)}
+          >
+            <Button type="link" danger>
+              Delete
+            </Button>
+          </Popconfirm>
+        </Space>
+      ),
+    },
   ];
 
   return (
     <div className="p-6">
-      <Card title="Campaign Management">
+      <Card
+        title="Campaign Management"
+        extra={
+          <Button
+            type="primary"
+            icon={<PlusOutlined />}
+            onClick={() => {
+              setEditingCampaign(null);
+              form.resetFields();
+              setIsModalOpen(true);
+            }}
+          >
+            Add Campaign
+          </Button>
+        }
+      >
         <div className="flex justify-between mb-4">
           <Search
             placeholder="Search campaigns..."
@@ -95,6 +185,57 @@ export default function CampaignPage() {
           pagination={{ pageSize: 5 }}
         />
       </Card>
+
+      {/* Modal */}
+      <Modal
+        title={editingCampaign ? "Edit Campaign" : "Add Campaign"}
+        open={isModalOpen}
+        onOk={handleAddOrUpdate}
+        onCancel={() => {
+          setIsModalOpen(false);
+          setEditingCampaign(null);
+        }}
+      >
+        <Form form={form} layout="vertical">
+          <Form.Item
+            name="name"
+            label="Campaign Name"
+            rules={[{ required: true }]}
+          >
+            <Input />
+          </Form.Item>
+
+          <Form.Item
+            name="status"
+            label="Status"
+            rules={[{ required: true }]}
+          >
+            <Select
+              options={[
+                { label: "Active", value: "Active" },
+                { label: "Paused", value: "Paused" },
+                { label: "Completed", value: "Completed" },
+              ]}
+            />
+          </Form.Item>
+
+          <Form.Item
+            name="budget"
+            label="Budget"
+            rules={[{ required: true }]}
+          >
+            <InputNumber style={{ width: "100%" }} />
+          </Form.Item>
+
+          <Form.Item
+            name="spend"
+            label="Spend"
+            rules={[{ required: true }]}
+          >
+            <InputNumber style={{ width: "100%" }} />
+          </Form.Item>
+        </Form>
+      </Modal>
     </div>
   );
 }
