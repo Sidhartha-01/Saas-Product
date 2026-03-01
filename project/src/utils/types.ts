@@ -8,4 +8,5 @@ export interface Campaign {
   spend: number;
   impressions: number;
   clicks: number;
+  createdAt?: string;  
 }

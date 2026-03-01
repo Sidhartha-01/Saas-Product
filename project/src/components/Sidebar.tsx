@@ -1,5 +1,5 @@
 import { Layout, Menu } from "antd";
-import { DashboardOutlined, FundProjectionScreenOutlined} from "@ant-design/icons";
+import { DashboardOutlined, FundProjectionScreenOutlined, SettingOutlined} from "@ant-design/icons";
 import { useNavigate} from "react-router-dom";
 
 const { Sider } = Layout;
@@ -28,6 +28,16 @@ export default function Sidebar() {
             icon: <FundProjectionScreenOutlined />,
             label: "Campaigns",
           },
+          {
+            key: "/system-status",
+            icon: <DashboardOutlined />,
+            label: "System Status",
+          },
+          {
+            key: "/settings",
+            icon: <SettingOutlined />,
+            label: "Settings",
+          }
         ]}
       />
     </Sider>
