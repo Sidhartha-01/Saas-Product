@@ -181,8 +181,9 @@ export default function CampaignPage() {
           columns={columns}
           dataSource={filteredData}
           loading={loading}
-          rowKey="id"
+          rowKey="id" 
           pagination={{ pageSize: 5 }}
+          scroll={{ x: "max-content" }}
         />
       </Card>
 
